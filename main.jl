@@ -11,5 +11,5 @@ n = nPerDim^ndim
 d = binomial(dpoly + ndim, ndim)
 A, tau, b_0 = data.generate(ndim, nPerDim, dpoly, "Legendre")
 
-# heatmap(1 : nPerDim, 1 : nPerDim, b_0)
+heatmap(1 : nPerDim, 1 : nPerDim, b_0)
 

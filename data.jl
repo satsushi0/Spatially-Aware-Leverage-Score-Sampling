@@ -29,9 +29,9 @@ module data
         polyStraight = ones(ndim, nPerDim, dpoly + 1)
         polyStraight[:, :, 2] = base
         for k in 3 : dpoly + 1
-            if (polyType == "Legendre")
+            if polyType == "Legendre"
                 polyStraight[:, :, k] = (2 * k - 1) / k * polyStraight[:, :, k - 1] .* base - (k - 1) / k * polyStraight[:, :, k - 2]
-            elseif (polyType == "Chebyshev")
+            elseif polyType == "Chebyshev"
                 polyStraight[:, :, k] = 2 * polyStraight[:, :, k - 1] .* base - polyStraight[:, :, k - 2]
             else
                 polyStraight[:, :, k] = polyStraight[:, :, k - 1] .* base
