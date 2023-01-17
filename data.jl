@@ -18,7 +18,7 @@ module data
 
     function _generateA(ndim, nPerDim, dpoly, polyType)
 
-        n = nPerDim^ndim
+        n = nPerDim ^ ndim
         d = binomial(dpoly + ndim, ndim)
         
         base = zeros(ndim, nPerDim)
@@ -41,12 +41,12 @@ module data
         P = zeros(Int64, n, ndim)
         for i in 1 : ndim
             for j in 1 : nPerDim
-                for k = 1 : nPerDim^(ndim - i)
-                    P[(j - 1) * nPerDim^(ndim - i) + k, i] = j
+                for k = 1 : nPerDim ^ (ndim - i)
+                    P[(j - 1) * nPerDim ^ (ndim - i) + k, i] = j
                 end    
             end
-            for l in 1 : nPerDim^(i - 1)
-                P[(l - 1) * nPerDim * nPerDim^(ndim - i) + 1 : l * nPerDim * nPerDim^(ndim - i), i] = P[1 : nPerDim * nPerDim^(ndim - i), i]
+            for l in 1 : nPerDim ^ (i - 1)
+                P[(l - 1) * nPerDim * nPerDim ^ (ndim - i) + 1 : l * nPerDim * nPerDim ^ (ndim - i), i] = P[1 : nPerDim * nPerDim ^ (ndim - i), i]
             end
         end
 
@@ -73,7 +73,7 @@ module data
 
     function _leverageScore(A)
         U, _, _ = svd(A)
-        tau = sum(U.^2, dims=2)
+        tau = sum(U .^ 2, dims=2)
         return tau
     end
 
