@@ -11,15 +11,14 @@ ndim = 2
 dpoly = 5
 n = nPerDim ^ ndim
 d = binomial(dpoly + ndim, ndim)
-A, tau, b_0 = data.generate(ndim, nPerDim, dpoly, "Legendre")
+A, tau, b_0 = data.generate(ndim, nPerDim, dpoly, "Legendre", "heat")
 uniform_prob = zeros(n, 1) .+ 1.0 / n
 
-
-heatmap(LinRange(-1, 1, nPerDim), LinRange(-1, 1, nPerDim), b_0)
+heatmap(LinRange(0, 1, nPerDim), LinRange(0, 5, nPerDim), b_0)
 
 sampleSize = [30, 35, 40, 45, 50, 60, 70]
 ntrial = 100
-sampleMethods = ["bernoulli", "btPivotal"]
+sampleMethods = ["bernoulli", "btPivotalCoordwise", "btPivotalPCA"]
 
 result_med = Dict{String, Vector{Float64}}()
 result_std = Dict{String, Vector{Float64}}()
@@ -40,10 +39,12 @@ for method in sampleMethods
     result_std[method * "_uniform"] = zeros(length(sampleSize))
     result_med[method * "_leverage"] = zeros(length(sampleSize))
     result_std[method * "_leverage"] = zeros(length(sampleSize))
-    for i in 1 : length(sampleSize)
+    for i in eachindex(sampleSize)
         nsample = sampleSize[i]
-        binaryTree_uniform = sampling.createBinaryTree(A[:, 2 : 2 + ndim - 1], uniform_prob, nsample)
-        binaryTree_leverage = sampling.createBinaryTree(A[:, 2 : 2 + ndim - 1], tau, nsample)
+        binaryTree_uniform_coordwise = sampling.createBinaryTree(A[:, 2 : 2 + ndim - 1], uniform_prob, nsample, "coordwise")
+        binaryTree_leverage_coordwise = sampling.createBinaryTree(A[:, 2 : 2 + ndim - 1], tau, nsample, "coordwise")
+        binaryTree_uniform_PCA = sampling.createBinaryTree(A[:, 2 : 2 + ndim - 1], uniform_prob, nsample, "PCA")
+        binaryTree_leverage_PCA = sampling.createBinaryTree(A[:, 2 : 2 + ndim - 1], tau, nsample, "PCA")
         errors_uniform, errors_leverage = zeros(ntrial), zeros(ntrial)
         for t in 1 : ntrial
             if method == "bernoulli"
@@ -51,10 +52,15 @@ for method in sampleMethods
                 errors_uniform[t] = eval(sample, prob)
                 sample, prob = sampling.bernoulliSampling(tau, nsample)
                 errors_leverage[t] = eval(sample, prob)
-            elseif method == "btPivotal"
-                sample, prob = sampling.btPivotalSampling(binaryTree_uniform, uniform_prob, nsample)
+            elseif method == "btPivotalCoordwise"
+                sample, prob = sampling.btPivotalSampling(binaryTree_uniform_coordwise, uniform_prob, nsample)
                 errors_uniform[t] = eval(sample, prob)
-                sample, prob = sampling.btPivotalSampling(binaryTree_leverage, tau, nsample)
+                sample, prob = sampling.btPivotalSampling(binaryTree_leverage_coordwise, tau, nsample)
+                errors_leverage[t] = eval(sample, prob)
+            elseif method == "btPivotalPCA"
+                sample, prob = sampling.btPivotalSampling(binaryTree_uniform_PCA, uniform_prob, nsample)
+                errors_uniform[t] = eval(sample, prob)
+                sample, prob = sampling.btPivotalSampling(binaryTree_leverage_PCA, tau, nsample)
                 errors_leverage[t] = eval(sample, prob)
             end
         end
@@ -67,8 +73,10 @@ end
 
 plot(sampleSize, result_med["bernoulli_uniform"], label="bernoulli_uniform", lw=1, ls=:dash, lc=:orange, yaxis=:log)
 plot!(sampleSize, result_med["bernoulli_leverage"], label="bernoulli_leverage", lw=4, ls=:dash, lc=:orange)
-plot!(sampleSize, result_med["btPivotal_uniform"], label="btPivotal_uniform", lw=1, lc=:blue)
-plot!(sampleSize, result_med["btPivotal_leverage"], label="btPivotal_leverage", lw=4, lc=:blue)
+plot!(sampleSize, result_med["btPivotalCoordwise_uniform"], label="btPivotalCoordwise_uniform", lw=1, lc=:blue)
+plot!(sampleSize, result_med["btPivotalCoordwise_leverage"], label="btPivotalCoordwise_leverage", lw=4, lc=:blue)
+plot!(sampleSize, result_med["btPivotalPCA_uniform"], label="btPivotalPCA_uniform", lw=1, lc=:green)
+plot!(sampleSize, result_med["btPivotalPCA_leverage"], label="btPivotalPCA_leverage", lw=4, lc=:green)
 
 # nsample = 50
 # sample, _ = sampling.bernoulliSampling(uniform_prob, nsample)

@@ -6,12 +6,18 @@ module data
     using Combinatorics
     using LinearAlgebra
     using ODE
+    using DiffEqOperators
+    using DifferentialEquations
     
-    function generate(ndim, nPerDim, dpoly, polyType="Legendre")
+    function generate(ndim, nPerDim, dpoly, polyType="Legendre", target="spring")
 
         A = _generateA(ndim, nPerDim, dpoly, polyType)
         tau = _leverageScore(A)
-        b_0 = _generateODE(nPerDim)
+        if target == "spring"
+            b_0 = _generateSpringDistance(nPerDim)
+        elseif target == "heat"
+            b_0 = _generateHeatEquation(nPerDim) 
+        end
         return A, tau, b_0
 
     end
@@ -77,7 +83,7 @@ module data
         return tau
     end
 
-    function _generateODE(nPerDim)
+    function _generateSpringDistance(nPerDim)
         
         c = 0.5
         k = 2.0
@@ -104,6 +110,37 @@ module data
                 b_0[i, j] = maximum(y[:, 1])
             end
         end
+
+        return b_0
+
+    end
+
+    function _generateHeatEquation(nPerDim)
+
+        diffusion_coef = 1.0 / pi ^ 2
+        fvals = LinRange(0, 5, nPerDim)
+        x = range(0, 1, length=100)
+        time = LinRange(0, 1.0, nPerDim)
+        
+        function f!(du, u, p, t)
+            Q, D, diffusion_coef = p
+            du .= diffusion_coef * D * Q * u
+        end
+
+        b_0 = zeros(nPerDim, nPerDim)
+        for i in eachindex(fvals)
+            freq = fvals[i]
+            u0 = sin.(freq * pi * x) .+ 1.0
+            Q = Dirichlet0BC(eltype(u0))
+            D = CenteredDifference{1}(2, 3, Float64(x.step), x.len)
+            p = [Q, D, diffusion_coef]
+            tspan = (0.0, 1.0)
+            prob = ODEProblem(f!, u0, tspan, p)
+            sol = solve(prob)
+            u = reduce(vcat, sol(time).u')
+            b_0[i, :] = maximum(u, dims=2)
+        end
+        b_0 = b_0 .- minimum(b_0)
 
         return b_0
 
