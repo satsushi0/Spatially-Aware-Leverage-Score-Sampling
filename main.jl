@@ -14,7 +14,8 @@ d = binomial(dpoly + ndim, ndim)
 A, tau, b_0 = data.generate(ndim, nPerDim, dpoly, "Legendre")
 uniform_prob = zeros(n, 1) .+ 1.0 / n
 
-heatmap(1 : nPerDim, 1 : nPerDim, b_0)
+
+heatmap(LinRange(-1, 1, nPerDim), LinRange(-1, 1, nPerDim), b_0)
 
 sampleSize = [30, 35, 40, 45, 50, 60, 70]
 ntrial = 100
