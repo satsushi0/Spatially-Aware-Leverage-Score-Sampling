@@ -11,10 +11,21 @@ ndim = 2
 dpoly = 5
 n = nPerDim ^ ndim
 d = binomial(dpoly + ndim, ndim)
-A, tau, b_0 = data.generate(ndim, nPerDim, dpoly, "Legendre", "heat")
+target = "heat"
+A, tau, b_0 = data.generate(ndim, nPerDim, dpoly, "Legendre", target)
 uniform_prob = zeros(n, 1) .+ 1.0 / n
 
-heatmap(LinRange(0, 1, nPerDim), LinRange(0, 5, nPerDim), b_0)
+if target == "spring"
+    heatmap(LinRange(-1, 1, nPerDim), LinRange(-1, 1, nPerDim), b_0, 
+            xlabel="spring constant, \$k\$", 
+            ylabel="driving frequency, \$\\omega\$")
+    savefig("qoi_spring.png")
+elseif target == "heat"
+    heatmap(LinRange(0, 1, nPerDim), LinRange(0, 5, nPerDim), b_0, 
+            xlabel="time, \$t\$", 
+            ylabel="starting frequency, \$f\$")
+    savefig("qoi_heat.png")
+end
 
 sampleSize = [30, 35, 40, 45, 50, 60, 70]
 ntrial = 100
@@ -71,12 +82,19 @@ for method in sampleMethods
     end
 end
 
-plot(sampleSize, result_med["bernoulli_uniform"], label="bernoulli_uniform", lw=1, ls=:dash, lc=:orange, yaxis=:log)
+if target == "spring"
+    title, name = "Spring Distance", "plot_spring.png"
+elseif target == "heat"
+    title, name = "Heat Equation", "plot_heat.png"
+end
+plot(sampleSize, result_med["bernoulli_uniform"], label="bernoulli_uniform", lw=1, ls=:dash, lc=:orange, yaxis=:log, 
+     title="$title, n=$n, polydeg=$dpoly, d=$d", xlabel="# samples", ylabel="median normalized error")
 plot!(sampleSize, result_med["bernoulli_leverage"], label="bernoulli_leverage", lw=4, ls=:dash, lc=:orange)
 plot!(sampleSize, result_med["btPivotalCoordwise_uniform"], label="btPivotalCoordwise_uniform", lw=1, lc=:blue)
 plot!(sampleSize, result_med["btPivotalCoordwise_leverage"], label="btPivotalCoordwise_leverage", lw=4, lc=:blue)
 plot!(sampleSize, result_med["btPivotalPCA_uniform"], label="btPivotalPCA_uniform", lw=1, lc=:green)
 plot!(sampleSize, result_med["btPivotalPCA_leverage"], label="btPivotalPCA_leverage", lw=4, lc=:green)
+savefig("$name")
 
 # nsample = 50
 # sample, _ = sampling.bernoulliSampling(uniform_prob, nsample)

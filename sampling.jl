@@ -39,7 +39,8 @@ module sampling
             elseif method == "PCA"
                 pca = fit(PCA, mat[:, 1 : ndim]'; maxoutdim=2)
                 _mat = predict(pca, mat[:, 1 : ndim]')'
-                mat = mat[sortperm(_mat[:, size(pca)[2]]), :]
+                # mat = mat[sortperm(_mat[:, size(pca)[2]]), :]
+                mat = mat[sortperm(_mat[:, 1]), :]
             end
             fillUp(mat[1 : div(_n, 2), :], loc, coord)
             fillUp(mat[div(_n, 2) + 1 : _n, :], loc + 2 ^ (_exponent - 1), coord)
