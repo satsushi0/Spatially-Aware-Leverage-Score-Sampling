@@ -12,7 +12,7 @@ dpoly = 5
 n = nPerDim ^ ndim
 d = binomial(dpoly + ndim, ndim)
 target = "heat"
-A, tau, b_0 = data.generate(ndim, nPerDim, dpoly, "Legendre", target)
+A, tau, b_0 = data.generate(ndim, nPerDim, dpoly, "grid", "Legendre", target)
 uniform_prob = zeros(n, 1) .+ 1.0 / n
 
 if target == "spring"

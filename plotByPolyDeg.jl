@@ -11,7 +11,7 @@ dpoly = 5
 n = nPerDim ^ ndim
 d = binomial(dpoly + ndim, ndim)
 target = "heat"
-A, tau, b_0 = data.generate(ndim, nPerDim, dpoly, "Legendre", target)
+A, tau, b_0 = data.generate(ndim, nPerDim, dpoly, "grid", "Legendre", target)
 sampleSize = [30, 40, 50, 60, 70, 80, 90, 100, 110, 120]
 ntrial = 100
 
@@ -33,7 +33,7 @@ ds = ones(Int64, length(dpolys))
 for i in eachindex(dpolys)
     dpoly = dpolys[i]
     result_med["$dpoly"] = zeros(length(sampleSize))
-    A = data._generateA(ndim, nPerDim, dpoly, "Legendre")
+    A = data._generateA(ndim, nPerDim, dpoly, "grid", "Legendre")
     ds[i] = size(A, 2)
     for j in eachindex(sampleSize)
         nsample = sampleSize[j]
