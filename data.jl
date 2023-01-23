@@ -10,13 +10,40 @@ module data
     using DifferentialEquations
     
     function generate(ndim, nPerDim, dpoly, AType="grid", polyType="Legendre", target="spring")
+        # ===== Parameters =====
+        # ndim      Dimensionality of the target function.
+        # nPerDim   Number of points to generate for each coordinate.
+        # dpoly     Polynomial degree for the regression.
+        # AType     How to generate initial data points for the matrix A. 
+        #               grid:           [-1, 1]^ndim grid.
+        #               Gaussian:       Drawn from the Gaussian distribution of mean 0, std 0.75.
+        #               uniform:        Drawn from the uniform distribution.
+        #               ChebyshevNodes: Drawn uniformly at random from the Chebyshev Nodes of 10000 values.
+        # polyType  Type of polynomials. [Chebyshev, Legendre, None]
+        # target    Target function. [spring, heat]
+        #               spring: Spring distance for 2D or 3D space.
+        #               heat:   Heat equation for 2D only.
+        #
+        # ===== Outputs =====
+        # A     Data points of n by d matrix. 
+        #       The columns are sorted in the order of polynomial degree. The lower degree comes to the left, the higher is settled to the right.
+        #       The first column is the bias term (polynomial degree is 0).
+        #       The second column corresponds to the term with polynomial degree 1.
+        # tau   Leverage score of matrix A (not normalized).
+        # b_0   Target function values. n by 1 vector.
 
         A = _generateA(ndim, nPerDim, dpoly, AType, polyType)
         tau = _leverageScore(A)
-        if target == "spring"
-            b_0 = _generateSpringDistance(A[:, 2 : 3])
-        elseif target == "heat"
-            b_0 = _generateHeatEquation(nPerDim) 
+        if ndim == 2
+            if target == "spring"
+                b_0 = _generateSpringDistance(A[:, 2 : 3])
+            elseif target == "heat"
+                b_0 = _generateHeatEquation(nPerDim) 
+            end
+        elseif ndim == 3
+            if target == "spring"
+                b_0 = _generateSpringDistance3D(A[:, 2 : 4])
+            end
         end
         return A, tau, b_0
 
@@ -25,11 +52,12 @@ module data
     function _generateA(ndim, nPerDim, dpoly, AType, polyType)
 
         n = nPerDim ^ ndim
-        d = binomial(dpoly + ndim, ndim)
-        base = zeros(ndim, n)
+        d = binomial(dpoly + ndim, ndim)    # Number of features.
+        base = zeros(ndim, n)               # The matrix of only polynomial degree 1 terms.
 
+        # Fill up the matrix base.
         if AType == "grid"
-            P = zeros(Int64, n, ndim)
+            P = zeros(Int64, n, ndim)       # A matrix holding all the permutation tuple (i_1, ..., i_ndim) where i in [n].
             for i in 1 : ndim
                 for j in 1 : nPerDim
                     for k = 1 : nPerDim ^ (ndim - i)
@@ -67,8 +95,11 @@ module data
             end
         end
 
-        polyStraight = ones(ndim, n, dpoly + 1)
-        polyStraight[:, :, 2] = base
+        # Compute the polynomial values.
+        polyStraight = ones(Float64, ndim, n, dpoly + 1)    # The third dimension of length dpoly+1 corresponds to the polynomial degree.
+        # As the polyStraight is initialized as all ones, we don't need to do additional for the bias terms polyStraight[:, :, 1].
+        polyStraight[:, :, 2] = base    # Insert the base as the polynomial degree 1 terms.
+        # Compute the values of polynomial degree 2 or higher.
         for k in 3 : dpoly + 1
             if polyType == "Legendre"
                 polyStraight[:, :, k] = (2 * k - 1) / k * polyStraight[:, :, k - 1] .* base - (k - 1) / k * polyStraight[:, :, k - 2]
@@ -79,15 +110,18 @@ module data
             end
         end
 
+        # Construct a d by ndim matrix for final output A. 
+        # Each row indicates how to mix up the polynomials in polyStraight.
+        # E.g. (2, 3, 4) means x_1^2 * x_2^3 * x_3^4.
         C = collect(combinations(1 : dpoly + ndim, ndim))
         C = reduce(vcat, C')
         for i in ndim : -1 : 2
-            C[:, i] = C[:, i] - C[:, i - 1]
+            C[:, i] = C[:, i] .- C[:, i - 1]
         end
         order = sortperm(sum(C, dims=2)[:, 1])
         C = C[order, :]
 
-        A = ones(n, d)
+        A = ones(Float64, n, d)
         for j in 1 : d
             for k in 1 : ndim
                 A[:, j] = A[:, j] .* polyStraight[k, :, C[j, k]]
@@ -103,16 +137,22 @@ module data
         return tau
     end
 
+
+    # Spring Distance Target.
+    # Damped harmonic oscillator with periodic driving force.
+    # Example taken from https://www5.in.tum.de/lehre/vorlesungen/algo_uq/ss18/06_polynomial_chaos.pdf
+
     function _generateSpringDistance(A_1)
+        # A_1   A matrix of size n by ndim, which corresponds to the entries of polynomial degree 1 in A.
         
         n = size(A_1, 1)
 
-        c = 0.5
-        k = 2.0
-        f = 0.5
-        w = 0.8
+        c = 0.5             # Damping coefficient
+        k = 2.0             # Spring constant
+        f = 0.5             # Forcing amplitude
+        w = 0.8             # Frequency
         p = [c, k, f, w]
-        yinit = [0.5, 0.0]
+        yinit = [0.5, 0.0]  # Initial position
         tmax = 20.0
 
         function odemodel(t, y)
@@ -133,7 +173,7 @@ module data
 
     end
 
-    function generateSpringDistance3D(A_1)
+    function _generateSpringDistance3D(A_1)
 
         n = size(A_1, 1)
 
@@ -161,40 +201,12 @@ module data
         end
 
         return b_0
-        
+
     end
 
-    # function _generateSpringDistance(nPerDim)
-        
-    #     c = 0.5
-    #     k = 2.0
-    #     f = 0.5
-    #     w = 0.8
-    #     p = [c, k, f, w]
-    #     yinit = [0.5, 0.0]
-    #     tmax = 20.0
-    #     kvals = collect(LinRange(1, 3, nPerDim))
-    #     wvals = collect(LinRange(0, 2, nPerDim))
-
-    #     function odemodel(t, y)
-    #         deriv = [y[2], p[3] * cos(p[4] * t) - p[2] * y[1] - p[1] * y[2]]
-    #         return deriv
-    #     end
-
-    #     b_0 = zeros(nPerDim, nPerDim)
-    #     for i in 1 : nPerDim
-    #         for j in 1 : nPerDim
-    #             p[4] = wvals[i]
-    #             p[2] = kvals[j]
-    #             _, y = ode45(odemodel, yinit, [0.0, tmax])
-    #             y = reduce(vcat, y')
-    #             b_0[i, j] = maximum(y[:, 1])
-    #         end
-    #     end
-
-    #     return b_0
-
-    # end
+    # Heat Equation Target.
+    # Example taken from http://courses.washington.edu/amath581/PDEtool.pdf
+    # As there is no PDE solver in Julia, I used the approximation method in https://discourse.julialang.org/t/solving-heat-diffusion-pde-using-diffeqtools-jl-and-differentialequations-jl/41630
 
     function _generateHeatEquation(nPerDim)
 

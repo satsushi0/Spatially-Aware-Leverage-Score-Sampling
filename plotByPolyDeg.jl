@@ -1,19 +1,21 @@
 # plotByPolyDeg.jl
+# Visualize the changes in error with different polynomial degree for regression.
 
 include("./data.jl")
 include("./sampling.jl")
 using Plots
 using Statistics
 
-nPerDim = 100
-ndim = 2
-dpoly = 5
-n = nPerDim ^ ndim
-d = binomial(dpoly + ndim, ndim)
-target = "heat"
+nPerDim = 100                       # Number of points to generate for each coordinate.
+ndim = 2                            # Dimensionality of the target function.
+dpoly = 5                           # Polynomial degree for the regression.
+n = nPerDim ^ ndim                  # Number of total data points.
+d = binomial(dpoly + ndim, ndim)    # Number of features. The matrix A has size n by d.
+init = "ChebyshevNodes"             # How to generate initial data points for the matrix A. 
+target = "heat"                     # Target function.
 A, tau, b_0 = data.generate(ndim, nPerDim, dpoly, "grid", "Legendre", target)
 sampleSize = [30, 40, 50, 60, 70, 80, 90, 100, 110, 120]
-ntrial = 100
+ntrial = 100                        # Repeat the sampling and regression for ntrial times and take the median error.
 
 b = reshape(b_0, :, 1)
 b_norm = mean(b .^ 2)
@@ -28,6 +30,7 @@ function eval(sample, prob)
     return error
 end
 
+# Do the simulation.
 dpolys = [3, 5, 7, 9, 11, 13, 15]
 ds = ones(Int64, length(dpolys))
 for i in eachindex(dpolys)
@@ -47,6 +50,7 @@ for i in eachindex(dpolys)
     end
 end
 
+# Plot the result.
 plot(title="Heat Equation, n=$n, leverage score, coordwise", xlabel="# samples", ylabel="median normalized error", 
      yaxis=:log, ylims=(1e-4, 1.0), legendfontsize=7)
 for i in eachindex(dpolys)

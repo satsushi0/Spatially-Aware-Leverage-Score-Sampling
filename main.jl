@@ -6,16 +6,17 @@ include("./sampling.jl")
 using Plots
 using Statistics
 
-nPerDim = 100
-ndim = 2
-dpoly = 7
-n = nPerDim ^ ndim
-d = binomial(dpoly + ndim, ndim)
-init = "ChebyshevNodes"
-target = "spring"
+nPerDim = 100                       # Number of points to generate for each coordinate.
+ndim = 2                            # Dimensionality of the target function.
+dpoly = 5                           # Polynomial degree for the regression.
+n = nPerDim ^ ndim                  # Number of total data points.
+d = binomial(dpoly + ndim, ndim)    # Number of features. The matrix A has size n by d.
+init = "ChebyshevNodes"             # How to generate initial data points for the matrix A. 
+target = "spring"                   # Target function.
 A, tau, b_0 = data.generate(ndim, nPerDim, dpoly, init, "Legendre", target)
-uniform_prob = zeros(n, 1) .+ 1.0 / n
+uniform_prob = zeros(n, 1) .+ 1.0 / n   # Use this even inclusion probabilities to compare with the leverage score.
 
+# Visualize the target function.
 # if target == "spring"
 #     heatmap(LinRange(-1, 1, nPerDim), LinRange(-1, 1, nPerDim), b_0, 
 #             xlabel="spring constant, \$k\$", 
@@ -29,15 +30,17 @@ uniform_prob = zeros(n, 1) .+ 1.0 / n
 # end
 
 sampleSize = collect(30 : 5 : 120)
-ntrial = 100
+ntrial = 100                            # Repeat the sampling and regression for ntrial times and take the median error.
 sampleMethods = ["bernoulli", "btPivotalCoordwise", "distPivotal"]
 
+# Keep the median and std of errors. For each setting, we have a key-value pair and the vector stores the value for each sample size.
 result_med = Dict{String, Vector{Float64}}()
 result_std = Dict{String, Vector{Float64}}()
 
 b = reshape(b_0, :, 1)
 b_norm = mean(b .^ 2)
 
+# A function that computes the normalized squared l2 error given the indices of sampled points and corresponding inclusion probability.
 function eval(sample, prob)
     A_tilde = A[sample, :] ./ (prob .^ (1 / 2))
     b_tilde = b[sample] ./ (prob .^ (1 / 2))
@@ -46,12 +49,13 @@ function eval(sample, prob)
     return error
 end
 
+# Do the simulation.
 for method in sampleMethods
     result_med[method * "_uniform"] = zeros(length(sampleSize))
     result_std[method * "_uniform"] = zeros(length(sampleSize))
     result_med[method * "_leverage"] = zeros(length(sampleSize))
     result_std[method * "_leverage"] = zeros(length(sampleSize))
-    dist_mat = sampling.distance(A[:, 2 : 3])
+    dist_mat = sampling.distance(A[:, 2 : 2 + ndim - 1])
     for i in eachindex(sampleSize)
         nsample = sampleSize[i]
         binaryTree_uniform_coordwise = sampling.createBinaryTree(A[:, 2 : 2 + ndim - 1], uniform_prob, nsample, "coordwise")
@@ -89,8 +93,10 @@ for method in sampleMethods
     end
 end
 
+# Compute the error when using the entire data points.
 error_full = eval(collect(1 : n), uniform_prob)
 
+# Plot the results.
 if target == "spring"
     title, name = "Spring | $init", "plot_spring_$init" * "_$dpoly.png"
 elseif target == "heat"
@@ -106,6 +112,7 @@ plot!(sampleSize, result_med["distPivotal_leverage"], label="distPivotal_leverag
 plot!(sampleSize, ones(Float64, length(sampleSize)) .* error_full, label="full_data", lw=1, lc=:magenta)
 savefig("$name")
 
+# Visualize the sampling result.
 # nsample = 50
 # dist_mat = sampling.distance(A[:, 2 : 3])
 # sample, _ = sampling.distPivotalSampling(dist_mat, uniform_prob, nsample)
