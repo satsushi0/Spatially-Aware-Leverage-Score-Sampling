@@ -99,4 +99,69 @@ module sampling
 
     end
 
+    function distance(A_1)
+        n, ndim = size(A_1)
+        dist = zeros(Float64, n, n)
+        dist_order = zeros(Int64, n, n)
+        pos_exp, neg_exp = exp.(A_1), exp.(-A_1)
+        for i in 1 : ndim
+            dist = dist + log.(pos_exp[:, i] * neg_exp[:, i]') .^ 2
+        end
+        for i in 1 : n
+            dist_order[i, :] = sortperm(dist[i, :])
+        end
+        return dist_order
+    end
+
+    function distPivotalSampling(dist_order, _prob, k)
+
+        n = size(dist_order, 1)
+        prob = _prob ./ sum(_prob) .* k
+        sample = Int64[]
+        indexProb = [1 : n prob]
+        randomOrder = sortperm(rand(n))
+        loc = collect(1 : n)
+        for i in randomOrder[1 : n - 1]
+            ix_i, p_i = Int(indexProb[i, 1]), indexProb[i, 2]
+            j, ix_j, p_j = 0, 0, 0.0
+            for k = 2 : n
+                ix_j = dist_order[ix_i, k]
+                if loc[ix_j] != 0
+                    j = loc[ix_j]
+                    p_j = indexProb[j, 2]
+                    break
+                end
+            end
+
+            if p_i + p_j < 1.0
+                if rand() * (p_i + p_j) < p_j
+                    indexProb[j, :] = [ix_j, p_i + p_j]
+                    loc[ix_i] = 0
+                    loc[ix_j] = j
+                else
+                    indexProb[j, :] = [ix_i, p_i + p_j]
+                    loc[ix_i] = j
+                    loc[ix_j] = 0
+                end
+            else
+                if rand() * (2 - p_i - p_j) < 1 - p_j
+                    indexProb[j, :] = [ix_j, p_i + p_j - 1.0]
+                    loc[ix_i] = 0
+                    push!(sample, ix_i)
+                    loc[ix_j] = j
+                else
+                    indexProb[j, :] = [ix_i, p_i + p_j - 1.0]
+                    loc[ix_i] = j
+                    loc[ix_j] = 0
+                    push!(sample, ix_j)
+                end
+            end
+        end
+        if size(sample, 1) < k
+            push!(sample, Int(indexProb[randomOrder[n], 1]))
+        end
+        return sample, prob[sample]
+
+    end
+
 end

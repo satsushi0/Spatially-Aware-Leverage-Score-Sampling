@@ -3,20 +3,12 @@
 include("./data.jl")
 include("./sampling.jl")
 using Plots
-using VegaLite, DataFrames
 
-nPerDim = 100
+nPerDim = 50
 ndim = 2
 dpoly = 5
 n = nPerDim ^ ndim
-A, tau, b_0 = data.generate(ndim, nPerDim, dpoly, "Gaussian", "Legendre", "spring")
-
-df = DataFrame(x=A[:, 2], y=A[:, 3], tau=tau[:, 1])
-df |> @vlplot(mark={type=:point, filled=true, size=50, opacity=1.0}, x=:x, y=:y, color={:tau, scale={scheme=:turbo, domain=[0.0, 0.15]}}, 
-              width=400, height=400, title="grid, n=$n") |> FileIO.save("grid.png")
-# scatter(A[:, 2], A[:, 3], col=tau, title="grid, n=$n", size=(500, 500))
-# savefig("Gaussian.png")
-
+A, tau, b_0 = data.generate(ndim, nPerDim, dpoly, "ChebyshevNodes", "Legendre", "spring")
 uniform_prob = zeros(n, 1) .+ 1.0 / n
 
 binaryTree = sampling.createBinaryTree(A[:, 2 : 2 + ndim - 1], uniform_prob, 1, "PCA", 30)
