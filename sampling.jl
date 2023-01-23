@@ -122,7 +122,7 @@ module sampling
             end
         end
         # Deal with the floating point issue.
-        # In the last step where we have p_i + p_j = 1.0, it may categorized as the p_i + p_j < 1.0.
+        # In the last step where we have p_i + p_j = 1.0, it may be categorized as p_i + p_j < 1.0.
         # In this case, the sample that should have been chosen is in the root node.
         if size(sample, 1) < k
             push!(sample, trunc(Int64, binaryTree[1, 1]))
@@ -205,7 +205,7 @@ module sampling
             end
         end
         # Deal with the floating point issue.
-        # In the last step where we have p_i + p_j = 1.0, it may categorized as the p_i + p_j < 1.0.
+        # In the last step where we have p_i + p_j = 1.0, it may be categorized as p_i + p_j < 1.0.
         if size(sample, 1) < k
             push!(sample, Int(indexProb[randomOrder[n], 1]))
         end
