@@ -8,11 +8,11 @@ using Statistics
 
 nPerDim = 100                       # Number of points to generate for each coordinate.
 ndim = 2                            # Dimensionality of the target function.
-dpoly = 5                           # Polynomial degree for the regression.
+dpoly = 7                           # Polynomial degree for the regression.
 n = nPerDim ^ ndim                  # Number of total data points.
 d = binomial(dpoly + ndim, ndim)    # Number of features. The matrix A has size n by d.
-init = "ChebyshevNodes"             # How to generate initial data points for the matrix A. 
-target = "spring"                   # Target function.
+init = "Gaussian"             # How to generate initial data points for the matrix A. 
+target = "heat"                   # Target function.
 A, tau, b_0 = data.generate(ndim, nPerDim, dpoly, init, "Legendre", target)
 uniform_prob = zeros(n, 1) .+ 1.0 / n   # Use this even inclusion probabilities to compare with the leverage score.
 
@@ -57,7 +57,7 @@ for method in sampleMethods
     result_std[method * "_leverage"] = zeros(length(sampleSize))
     dist_mat = sampling.distance(A[:, 2 : 2 + ndim - 1])
     for i in eachindex(sampleSize)
-        nsample = sampleSize[i]
+        nsample = sampleSize[i]  # With Gaussian initialization, tau could be bigger than 1.0.
         binaryTree_uniform_coordwise = sampling.createBinaryTree(A[:, 2 : 2 + ndim - 1], uniform_prob, nsample, "coordwise")
         binaryTree_leverage_coordwise = sampling.createBinaryTree(A[:, 2 : 2 + ndim - 1], tau, nsample, "coordwise")
         # binaryTree_uniform_PCA = sampling.createBinaryTree(A[:, 2 : 2 + ndim - 1], uniform_prob, nsample, "PCA")

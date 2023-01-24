@@ -104,7 +104,13 @@ module sampling
             for i in 2 ^ (e - 1) : 2 ^ e - 1                    # From the left node to the right node.
                 l, r = 2 * i, 2 * i + 1                         # The indices of the children.
                 pl, pr = binaryTree[l, 2], binaryTree[r, 2]     # The inclusion probability.
-                if pl + pr < 1.0
+                # pl = 0.0 and pr = 0.0 are for the Gaussian initialization where inclusion probabilities can be bigger than 1.0.
+                # This is a stopgap. This approach brings an unwanted effect on the sample distortion.
+                if pl == 0.0
+                    binaryTree[i, :] = [binaryTree[r, 1], pl + pr]
+                elseif pr == 0.0
+                    binaryTree[i, :] = [binaryTree[l, 1], pl + pr]
+                elseif pl + pr < 1.0
                     if rand() < pl / (pl + pr)                  # The case l promotes.
                         binaryTree[i, :] = [binaryTree[l, 1], pl + pr]
                     else                                        # The case r promotes

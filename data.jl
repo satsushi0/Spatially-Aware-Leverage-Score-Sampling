@@ -16,7 +16,9 @@ module data
         # dpoly     Polynomial degree for the regression.
         # AType     How to generate initial data points for the matrix A. 
         #               grid:           [-1, 1]^ndim grid.
-        #               Gaussian:       Drawn from the Gaussian distribution of mean 0, std 0.75.
+        #               Gaussian_range: Drawn from the Gaussian distribution of mean 0, std 0.75. Values are in range [-1, 1]
+        #               Gaussian:       Gaussian of mean 0 and std 0.75 but not limited to range [-1, 1].
+        #                               Truncated only to make sure the ODE & PDE work.
         #               uniform:        Drawn from the uniform distribution.
         #               ChebyshevNodes: Drawn uniformly at random from the Chebyshev Nodes of 10000 values.
         # polyType  Type of polynomials. [Chebyshev, Legendre, None]
@@ -38,7 +40,7 @@ module data
             if target == "spring"
                 b_0 = _generateSpringDistance(A[:, 2 : 3])
             elseif target == "heat"
-                b_0 = _generateHeatEquation(nPerDim) 
+                b_0 = _generateHeatEquation(A[:, 2 : 3]) 
             end
         elseif ndim == 3
             if target == "spring"
@@ -71,17 +73,24 @@ module data
             for i in 1 : ndim
                 base[i, :] = LinRange(-1, 1, nPerDim)[P[:, i]]
             end
-        elseif AType == "Gaussian"
+        elseif AType == "Gaussian_range"
             std = 0.75
             for i in 1 : n
-                a, b = randn() * std, randn() * std
-                while abs(a) > 1.0
-                    a = randn() * std
+                r = randn(ndim) * std
+                while sum(abs.(r) .> 1.0) > 0
+                    r[abs.(r) .> 1.0] .= randn(sum(abs.(r) .> 1.0))
                 end
-                while abs(b) > 1.0
-                    b = randn() * std
+                base[:, i] = r
+            end
+        elseif AType == "Gaussian"
+            # All values should be bigger than -1 to make the ODE & PDE valid.
+            std = 0.75
+            for i in 1 : n
+                r = randn(ndim) * std
+                while sum(r .< -1.0) > 0
+                    r[r .< -1.0] .= randn(sum(r .< -1.0))
                 end
-                base[:, i] = [a, b]
+                base[:, i] = r
             end
         elseif AType == "uniform"
             for i in 1 : n
@@ -160,7 +169,7 @@ module data
             return deriv
         end
 
-        b_0 = zeros(n)
+        b_0 = zeros(Float64, n)
         for i in 1 : n
             p[2] = A_1[i, 1] + 2.0
             p[4] = A_1[i, 2] + 1.0
@@ -190,7 +199,7 @@ module data
             return deriv
         end
 
-        b_0 = zeros(n)
+        b_0 = zeros(Float64, n)
         for i in 1 : n
             p[2] = A_1[i, 1] + 2.0
             p[3] = A_1[i, 2] + 1.0
@@ -208,21 +217,22 @@ module data
     # Example taken from http://courses.washington.edu/amath581/PDEtool.pdf
     # As there is no PDE solver in Julia, I used the approximation method in https://discourse.julialang.org/t/solving-heat-diffusion-pde-using-diffeqtools-jl-and-differentialequations-jl/41630
 
-    function _generateHeatEquation(nPerDim)
+    function _generateHeatEquation(A_1)
+
+        n = size(A_1, 1)
 
         diffusion_coef = 1.0 / pi ^ 2
-        fvals = LinRange(0, 5, nPerDim)
-        x = range(0, 1, length=100)
-        time = LinRange(0, 3.0, nPerDim)
+        x = range(0, 1, length=50)
         
         function f!(du, u, p, t)
             Q, D, diffusion_coef = p
             du .= diffusion_coef * D * Q * u
         end
 
-        b_0 = zeros(nPerDim, nPerDim)
-        for i in eachindex(fvals)
-            freq = fvals[i]
+        b_0 = zeros(Float64, n)
+        for i in 1 : n
+            freq = (A_1[i, 2] + 1.0) * 2.5
+            time = (A_1[i, 1] + 1.0) * 1.5
             u0 = sin.(freq * pi * x) .+ 1.0
             Q = Dirichlet0BC(eltype(u0))
             D = CenteredDifference{1}(2, 3, Float64(x.step), x.len)
@@ -230,13 +240,45 @@ module data
             tspan = (0.0, 3.0)
             prob = ODEProblem(f!, u0, tspan, p)
             sol = solve(prob)
-            u = reduce(vcat, sol(time).u')
-            b_0[i, :] = maximum(u, dims=2)
+            u = sol(time)
+            b_0[i] = maximum(u)
         end
         b_0 = b_0 .- minimum(b_0)
 
         return b_0
 
     end
+
+    # function _generateHeatEquation(nPerDim)
+        # This implementation is only for grid.
+
+    #     diffusion_coef = 1.0 / pi ^ 2
+    #     fvals = LinRange(0, 5, nPerDim)
+    #     x = range(0, 1, length=100)
+    #     time = LinRange(0, 3.0, nPerDim)
+        
+    #     function f!(du, u, p, t)
+    #         Q, D, diffusion_coef = p
+    #         du .= diffusion_coef * D * Q * u
+    #     end
+
+    #     b_0 = zeros(nPerDim, nPerDim)
+    #     for i in eachindex(fvals)
+    #         freq = fvals[i]
+    #         u0 = sin.(freq * pi * x) .+ 1.0
+    #         Q = Dirichlet0BC(eltype(u0))
+    #         D = CenteredDifference{1}(2, 3, Float64(x.step), x.len)
+    #         p = [Q, D, diffusion_coef]
+    #         tspan = (0.0, 3.0)
+    #         prob = ODEProblem(f!, u0, tspan, p)
+    #         sol = solve(prob)
+    #         u = reduce(vcat, sol(time).u')
+    #         b_0[i, :] = maximum(u, dims=2)
+    #     end
+    #     b_0 = b_0 .- minimum(b_0)
+
+    #     return b_0
+
+    # end
 
 end

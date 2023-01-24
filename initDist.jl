@@ -25,3 +25,15 @@ for initMethod in initMethods
     df |> @vlplot(mark={type=:point, filled=true, size=50, opacity=1.0}, x=:x, y=:y, color={:qoi, scale={scheme=:turbo, domain=[0.5, 1.0]}}, 
                 width=400, height=400, title="$initMethod, n=$n") |> FileIO.save("qoi_spring_$initMethod.png")
 end
+
+initMethod = "Gaussian"
+A, tau, b_0 = data.generate(ndim, nPerDim, dpoly, initMethod, "Legendre", "spring")
+# Plot the data points colored by the leverage score.
+_tau = clamp.(tau, 0.0, 0.15)
+df = DataFrame(x=A[:, 2], y=A[:, 3], _tau=_tau[:, 1])
+df |> @vlplot(mark={type=:point, filled=true, size=50, opacity=1.0}, x=:x, y=:y, color={:_tau, scale={scheme=:turbo, domain=[0.0, 0.15]}}, 
+            width=400, height=400, title="$initMethod, n=$n, ") |> FileIO.save("$initMethod" * "_updated.png")
+# Plot the data points colored by the target value.
+df = DataFrame(x=A[:, 2], y=A[:, 3], qoi=b_0)
+df |> @vlplot(mark={type=:point, filled=true, size=50, opacity=1.0}, x=:x, y=:y, color={:qoi, scale={scheme=:turbo, domain=[0.5, 1.0]}}, 
+            width=400, height=400, title="$initMethod, n=$n") |> FileIO.save("qoi_spring_$initMethod" * "_updated.png")
