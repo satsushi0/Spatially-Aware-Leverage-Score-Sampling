@@ -27,7 +27,7 @@ for initMethod in initMethods
 end
 
 initMethod = "grid"
-A, tau, b_0 = data.generate(ndim, nPerDim, dpoly, initMethod, "Legendre", "heat_matlab")
+A, tau, b_0 = data.generate(ndim, nPerDim, dpoly, initMethod, "Legendre", "heat")
 
 # Plot the data points colored by the leverage score.
 _tau = clamp.(tau, 0.0, 0.15)
@@ -41,5 +41,5 @@ df |> @vlplot(mark={type=:rect, filled=true, size=50, opacity=1.0}, x=:x, y=:y, 
 
 heatmap(LinRange(0.0, 3.0, nPerDim), LinRange(0.0, 5.0, nPerDim), reshape(b_0, nPerDim, nPerDim)', 
         colormap=:turbo, size=(450, 400),
-        title="Heat Equation in Julia", xlabel="time, \$t\$", ylabel="starting frequency, \$f\$")
-savefig("qoi_heat_julia.png")
+        title="Heat Equation in Matlab", xlabel="time, \$t\$", ylabel="starting frequency, \$f\$")
+savefig("qoi_heat_matlab.png")

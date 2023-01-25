@@ -9,6 +9,7 @@ module data
     using DiffEqOperators
     using DifferentialEquations
     using MATLAB
+    using Base.Threads
     
     function generate(ndim, nPerDim, dpoly, AType="grid", polyType="Legendre", target="spring")
         # ===== Parameters =====
@@ -44,9 +45,7 @@ module data
             elseif target == "heat"
                 b_0 = _generateHeatEquation(A[:, 2 : 3]) 
             elseif target == "heat_matlab"
-                dir = @__DIR__
-                mat"addpath($dir)"
-                b_0 = mxcall(:generateHeatEquationMatlab, 1, A[:, 2 : 3])
+                b_0 = _generateHeatEquationMatlab(A[:, 2 : 3])
             end
         elseif ndim == 3
             if target == "spring"
@@ -286,5 +285,15 @@ module data
     #     return b_0
 
     # end
+
+    function _generateHeatEquationMatlab(A_1)
+
+        dir = @__DIR__
+        mat"addpath($dir)"
+
+        b_0 = mxcall(:generateHeatEquationMatlab, 1, A_1)
+
+        return b_0
+    end
 
 end

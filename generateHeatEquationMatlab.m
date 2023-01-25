@@ -7,8 +7,8 @@ function b_0 = generateHeatEquationMatlab(A_1)
 
     b_0 = zeros(n, 1);
     
-    times = A_1(:, 1);
-    freqs = A_1(:, 2);
+    times = (A_1(:, 1) + 1.0) * 1.5;
+    freqs = (A_1(:, 2) + 1.0) * 2.5;
     
     parfor i = 1 : n
         freq = freqs(i);
@@ -20,8 +20,16 @@ end
 
 function b = pdesolver(freq, time)
     x = linspace(0, 1, 100);
-    t = [time, time + 0.1, time + 0.2];
+    if time <= 0.0
+        t = [0.0, 0.1, 0.2];
+    else
+        t = [0.0, time, time + 0.1];
+    end
     u0 = @(x) sin(freq * pi * x) + 1.0;
     u = pdepe(0.0, 'pdex1pde', u0, 'pdex1bc', x, t);
-    b = max(u(1, :));
+    if time <= 0.0
+        b = max(u(1, :));
+    else
+        b = max(u(2, :));
+    end
 end
