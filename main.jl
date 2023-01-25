@@ -8,7 +8,7 @@ using Statistics
 
 nPerDim = 100                       # Number of points to generate for each coordinate.
 ndim = 2                            # Dimensionality of the target function.
-dpoly = 7                           # Polynomial degree for the regression.
+dpoly = 17                           # Polynomial degree for the regression.
 n = nPerDim ^ ndim                  # Number of total data points.
 d = binomial(dpoly + ndim, ndim)    # Number of features. The matrix A has size n by d.
 init = "grid"             # How to generate initial data points for the matrix A. 
@@ -28,6 +28,11 @@ uniform_prob = zeros(n, 1) .+ 1.0 / n   # Use this even inclusion probabilities 
 #             ylabel="starting frequency, \$f\$")
 #     savefig("qoi_heat.png")
 # end
+
+# temporary
+dpoly = 17
+n = nPerDim ^ ndim
+d = binomial(dpoly + ndim, ndim) 
 
 sampleSize = collect(30 : 5 : 120)
 ntrial = 100                            # Repeat the sampling and regression for ntrial times and take the median error.
