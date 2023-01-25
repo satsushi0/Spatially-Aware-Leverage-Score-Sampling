@@ -11,8 +11,8 @@ ndim = 2                            # Dimensionality of the target function.
 dpoly = 7                           # Polynomial degree for the regression.
 n = nPerDim ^ ndim                  # Number of total data points.
 d = binomial(dpoly + ndim, ndim)    # Number of features. The matrix A has size n by d.
-init = "Gaussian"             # How to generate initial data points for the matrix A. 
-target = "heat"                   # Target function.
+init = "grid"             # How to generate initial data points for the matrix A. 
+target = "spring"                   # Target function.
 A, tau, b_0 = data.generate(ndim, nPerDim, dpoly, init, "Legendre", target)
 uniform_prob = zeros(n, 1) .+ 1.0 / n   # Use this even inclusion probabilities to compare with the leverage score.
 
@@ -112,6 +112,7 @@ plot!(sampleSize, result_med["distPivotal_leverage"], label="distPivotal_leverag
 plot!(sampleSize, ones(Float64, length(sampleSize)) .* error_full, label="full_data", lw=1, lc=:magenta)
 savefig("$name")
 
+
 # Visualize the sampling result.
 # nsample = 50
 # dist_mat = sampling.distance(A[:, 2 : 3])
@@ -124,3 +125,7 @@ savefig("$name")
 # sample, prob = sampling.btPivotalSampling(binaryTree_leverage, tau, nsample)
 # plot(A[sample, 2], A[sample, 3], seriestype=:scatter, label="distPivotal_uniform")
 # savefig("distPivotal_uniform.png")
+
+start = time()
+b_0 = mxcall(:generateHeatEquationMatlab, 1, A[9900:10000, 2:3])
+time() - start

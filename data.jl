@@ -8,6 +8,7 @@ module data
     using ODE
     using DiffEqOperators
     using DifferentialEquations
+    using MATLAB
     
     function generate(ndim, nPerDim, dpoly, AType="grid", polyType="Legendre", target="spring")
         # ===== Parameters =====
@@ -23,8 +24,9 @@ module data
         #               ChebyshevNodes: Drawn uniformly at random from the Chebyshev Nodes of 10000 values.
         # polyType  Type of polynomials. [Chebyshev, Legendre, None]
         # target    Target function. [spring, heat]
-        #               spring: Spring distance for 2D or 3D space.
-        #               heat:   Heat equation for 2D only.
+        #               spring:         Spring distance for 2D or 3D space.
+        #               heat:           Heat equation for 2D only.
+        #               heat_matlab:    Heat equation solved by PDE solver in Matlab. 2D only.
         #
         # ===== Outputs =====
         # A     Data points of n by d matrix. 
@@ -41,6 +43,10 @@ module data
                 b_0 = _generateSpringDistance(A[:, 2 : 3])
             elseif target == "heat"
                 b_0 = _generateHeatEquation(A[:, 2 : 3]) 
+            elseif target == "heat_matlab"
+                dir = @__DIR__
+                mat"addpath($dir)"
+                b_0 = mxcall(:generateHeatEquationMatlab, 1, A[:, 2 : 3])
             end
         elseif ndim == 3
             if target == "spring"
