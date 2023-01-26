@@ -17,17 +17,18 @@ module data
         # nPerDim   Number of points to generate for each coordinate.
         # dpoly     Polynomial degree for the regression.
         # AType     How to generate initial data points for the matrix A. 
-        #               grid:           [-1, 1]^ndim grid.
-        #               Gaussian_range: Drawn from the Gaussian distribution of mean 0, std 0.75. Values are in range [-1, 1]
-        #               Gaussian:       Gaussian of mean 0 and std 0.75 but not limited to range [-1, 1].
-        #                               Truncated only to make sure the ODE & PDE work.
-        #               uniform:        Drawn from the uniform distribution.
-        #               ChebyshevNodes: Drawn uniformly at random from the Chebyshev Nodes of 10000 values.
+        #               grid:               [-1, 1]^ndim grid.
+        #               Gaussian_nomanip    Drawn from the Gaussian distribution without any manipulation.
+        #               Gaussian_range:     Drawn from the Gaussian distribution of mean 0, std 0.75. Values are in range [-1, 1]
+        #               Gaussian:           Gaussian of mean 0 and std 0.75 but not limited to range [-1, 1].
+        #                                   Truncated only to make sure the ODE & PDE work.
+        #               uniform:            Drawn from the uniform distribution.
+        #               ChebyshevNodes:     Drawn uniformly at random from the Chebyshev Nodes of 10000 values.
         # polyType  Type of polynomials. [Chebyshev, Legendre, None]
         # target    Target function. [spring, heat]
-        #               spring:         Spring distance for 2D or 3D space.
-        #               heat:           Heat equation for 2D only.
-        #               heat_matlab:    Heat equation solved by PDE solver in Matlab. 2D only.
+        #               spring:             Spring distance for 2D or 3D space.
+        #               heat:               Heat equation for 2D only.
+        #               heat_matlab:        Heat equation solved by PDE solver in Matlab. 2D only.
         #
         # ===== Outputs =====
         # A     Data points of n by d matrix. 
@@ -77,6 +78,12 @@ module data
             end
             for i in 1 : ndim
                 base[i, :] = LinRange(-1, 1, nPerDim)[P[:, i]]
+            end
+        elseif AType == "Gaussian_nomanip"
+            std = 0.75
+            for i in 1 : n
+                r = randn(ndim) * std
+                base[:, i] = r
             end
         elseif AType == "Gaussian_range"
             std = 0.75

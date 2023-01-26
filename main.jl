@@ -8,11 +8,11 @@ using Statistics
 
 nPerDim = 100                       # Number of points to generate for each coordinate.
 ndim = 2                            # Dimensionality of the target function.
-dpoly = 17                           # Polynomial degree for the regression.
+dpoly = 17                          # Polynomial degree for the regression.
 n = nPerDim ^ ndim                  # Number of total data points.
 d = binomial(dpoly + ndim, ndim)    # Number of features. The matrix A has size n by d.
 init = "grid"             # How to generate initial data points for the matrix A. 
-target = "spring"                   # Target function.
+target = "heat_matlab"                   # Target function.
 A, tau, b_0 = data.generate(ndim, nPerDim, dpoly, init, "Legendre", target)
 uniform_prob = zeros(n, 1) .+ 1.0 / n   # Use this even inclusion probabilities to compare with the leverage score.
 
@@ -29,12 +29,7 @@ uniform_prob = zeros(n, 1) .+ 1.0 / n   # Use this even inclusion probabilities 
 #     savefig("qoi_heat.png")
 # end
 
-# temporary
-dpoly = 17
-n = nPerDim ^ ndim
-d = binomial(dpoly + ndim, ndim) 
-
-sampleSize = collect(30 : 5 : 120)
+sampleSize = collect(30 : 10 : 250)
 ntrial = 100                            # Repeat the sampling and regression for ntrial times and take the median error.
 sampleMethods = ["bernoulli", "btPivotalCoordwise", "distPivotal"]
 
@@ -69,26 +64,37 @@ for method in sampleMethods
         # binaryTree_leverage_PCA = sampling.createBinaryTree(A[:, 2 : 2 + ndim - 1], tau, nsample, "PCA")
         errors_uniform, errors_leverage = zeros(ntrial), zeros(ntrial)
         for t in 1 : ntrial
-            if method == "bernoulli"
-                sample, prob = sampling.bernoulliSampling(uniform_prob, nsample)
-                errors_uniform[t] = eval(sample, prob)
-                sample, prob = sampling.bernoulliSampling(tau, nsample)
-                errors_leverage[t] = eval(sample, prob)
-            elseif method == "btPivotalCoordwise"
-                sample, prob = sampling.btPivotalSampling(binaryTree_uniform_coordwise, uniform_prob, nsample)
-                errors_uniform[t] = eval(sample, prob)
-                sample, prob = sampling.btPivotalSampling(binaryTree_leverage_coordwise, tau, nsample)
-                errors_leverage[t] = eval(sample, prob)
-            elseif method == "btPivotalPCA"
-                sample, prob = sampling.btPivotalSampling(binaryTree_uniform_PCA, uniform_prob, nsample)
-                errors_uniform[t] = eval(sample, prob)
-                sample, prob = sampling.btPivotalSampling(binaryTree_leverage_PCA, tau, nsample)
-                errors_leverage[t] = eval(sample, prob)
-            elseif method == "distPivotal"
-                sample, prob = sampling.distPivotalSampling(dist_mat, uniform_prob, nsample)
-                errors_uniform[t] = eval(sample, prob)
-                sample, prob = sampling.distPivotalSampling(dist_mat, tau, nsample)
-                errors_leverage[t] = eval(sample, prob)
+            errorCount = 0
+            while true          # Some sampling results cause SingularException in computing the inverse i.e. (A^T A)^-1.
+                try             # In this case, redo the sampling.
+                    if method == "bernoulli"
+                        sample, prob = sampling.bernoulliSampling(uniform_prob, nsample)
+                        errors_uniform[t] = eval(sample, prob)
+                        sample, prob = sampling.bernoulliSampling(tau, nsample)
+                        errors_leverage[t] = eval(sample, prob)
+                    elseif method == "btPivotalCoordwise"
+                        sample, prob = sampling.btPivotalSampling(binaryTree_uniform_coordwise, uniform_prob, nsample)
+                        errors_uniform[t] = eval(sample, prob)
+                        sample, prob = sampling.btPivotalSampling(binaryTree_leverage_coordwise, tau, nsample)
+                        errors_leverage[t] = eval(sample, prob)
+                    elseif method == "btPivotalPCA"
+                        sample, prob = sampling.btPivotalSampling(binaryTree_uniform_PCA, uniform_prob, nsample)
+                        errors_uniform[t] = eval(sample, prob)
+                        sample, prob = sampling.btPivotalSampling(binaryTree_leverage_PCA, tau, nsample)
+                        errors_leverage[t] = eval(sample, prob)
+                    elseif method == "distPivotal"
+                        sample, prob = sampling.distPivotalSampling(dist_mat, uniform_prob, nsample)
+                        errors_uniform[t] = eval(sample, prob)
+                        sample, prob = sampling.distPivotalSampling(dist_mat, tau, nsample)
+                        errors_leverage[t] = eval(sample, prob)
+                    end
+                    break
+                catch
+                    errorCount = errorCount + 1
+                    if errorCount > 5
+                        throw(ErrorException("Error"))
+                    end
+                end
             end
         end
         result_med[method * "_uniform"][i] = median(errors_uniform)
@@ -106,8 +112,10 @@ if target == "spring"
     title, name = "Spring | $init", "plot_spring_$init" * "_$dpoly.png"
 elseif target == "heat"
     title, name = "Heat | $init", "plot_heat_$init" * "_$dpoly.png"
+elseif target == "heat_matlab"
+    title, name = "Heat (M) | $init", "plot_heatM_$init" * "_$dpoly.png"
 end
-plot(title="$title, n=$n, polydeg=$dpoly, d=$d", xlabel="# samples", ylabel="median normalized error", yaxis=:log, ylims=(1e-3, 1e1), legend=:topright)
+plot(title="$title, n=$n, polydeg=$dpoly, d=$d", xlabel="# samples", ylabel="median normalized error", yaxis=:log, ylims=(1e-5, 1e1), legend=:left)
 plot!(sampleSize, result_med["bernoulli_uniform"], label="bernoulli_uniform", lw=1, ls=:dash, lc=:orange)
 plot!(sampleSize, result_med["bernoulli_leverage"], label="bernoulli_leverage", lw=4, ls=:dash, lc=:orange)
 plot!(sampleSize, result_med["btPivotalCoordwise_uniform"], label="btPivotalCoordwise_uniform", lw=1, lc=:blue)
