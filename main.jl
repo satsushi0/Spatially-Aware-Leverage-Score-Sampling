@@ -8,10 +8,10 @@ using Statistics
 
 nPerDim = 100                       # Number of points to generate for each coordinate.
 ndim = 2                            # Dimensionality of the target function.
-dpoly = 17                          # Polynomial degree for the regression.
+dpoly = 5                           # Polynomial degree for the regression.
 n = nPerDim ^ ndim                  # Number of total data points.
 d = binomial(dpoly + ndim, ndim)    # Number of features. The matrix A has size n by d.
-init = "grid"             # How to generate initial data points for the matrix A. 
+init = "Gaussian_nomanip"           # How to generate initial data points for the matrix A. 
 target = "heat_matlab"                   # Target function.
 A, tau, b_0 = data.generate(ndim, nPerDim, dpoly, init, "Legendre", target)
 uniform_prob = zeros(n, 1) .+ 1.0 / n   # Use this even inclusion probabilities to compare with the leverage score.
@@ -29,7 +29,7 @@ uniform_prob = zeros(n, 1) .+ 1.0 / n   # Use this even inclusion probabilities 
 #     savefig("qoi_heat.png")
 # end
 
-sampleSize = collect(30 : 10 : 250)
+sampleSize = collect(20 : 5 : 120)
 ntrial = 100                            # Repeat the sampling and regression for ntrial times and take the median error.
 sampleMethods = ["bernoulli", "btPivotalCoordwise", "distPivotal"]
 
@@ -115,7 +115,7 @@ elseif target == "heat"
 elseif target == "heat_matlab"
     title, name = "Heat (M) | $init", "plot_heatM_$init" * "_$dpoly.png"
 end
-plot(title="$title, n=$n, polydeg=$dpoly, d=$d", xlabel="# samples", ylabel="median normalized error", yaxis=:log, ylims=(1e-5, 1e1), legend=:left)
+plot(title="$title, n=$n, polydeg=$dpoly, d=$d", xlabel="# samples", ylabel="median normalized error", yaxis=:log, ylims=(1e-2, 1e1), legend=:topright)
 plot!(sampleSize, result_med["bernoulli_uniform"], label="bernoulli_uniform", lw=1, ls=:dash, lc=:orange)
 plot!(sampleSize, result_med["bernoulli_leverage"], label="bernoulli_leverage", lw=4, ls=:dash, lc=:orange)
 plot!(sampleSize, result_med["btPivotalCoordwise_uniform"], label="btPivotalCoordwise_uniform", lw=1, lc=:blue)

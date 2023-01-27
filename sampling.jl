@@ -19,10 +19,17 @@ module sampling
 
     using MultivariateStats
     using LinearAlgebra
+    using Random
     
     function bernoulliSampling(_prob, k)
         # Scale the inclusion probability.
         prob = _prob ./ sum(_prob) .* k
+        # If we have probabilities bigger than 1.0, we pick those deterministically.
+        # Then, adjust the other probabilities so that we get exactly k samples (in expectation in Bernoulli sampling).
+        while abs(sum(clamp.(prob, 0.0, 1.0)) - k) > 1e-5
+            rescaleFactor = (k - sum(prob .>= 1.0)) / sum(prob[prob .< 1.0])
+            prob = prob * rescaleFactor
+        end
         sample = Int64[]
         random = rand(length(prob))
         for i in eachindex(prob)
@@ -30,7 +37,7 @@ module sampling
                 push!(sample, i)
             end
         end
-        return sample, prob[sample]
+        return sample, clamp.(prob, 0.0, 1.0)[sample]
     end
 
     function createBinaryTree(A_1, _prob, k, method="coordwise", pcaFirstRotation=45.0)
@@ -39,6 +46,12 @@ module sampling
         n, ndim = size(A_1)             # n: number of samples, ndim: the dimensionality.
         A_1 = [A_1 collect(1 : 1 : n)]  # As A_1 will be shuffled, add collect(1 : 1 : n) to keep track of the initial position.
         prob = _prob ./ sum(_prob) .* k
+        # If we have probabilities bigger than 1.0, we pick those deterministically.
+        # Then, adjust the other probabilities so that we get exactly k samples (in expectation in Bernoulli sampling).
+        while abs(sum(clamp.(prob, 0.0, 1.0)) - k) > 1e-5
+            rescaleFactor = (k - sum(prob .>= 1.0)) / sum(prob[prob .< 1.0])
+            prob = prob * rescaleFactor
+        end
         exponent = ceil(Int64, log2(n)) # The height of the binary tree.
 
         binaryTree = zeros(Float64, 2 ^ (exponent + 1) - 1, 2)
@@ -100,12 +113,20 @@ module sampling
         exponent = ceil(Int64, log2(size(binaryTree, 1))) - 1
         prob = _prob ./ sum(_prob) .* k
         sample = Int64[]
+
+        # Loop over all the leaves. 
+        # If the probability is bigger than 1.0, pick it as a sample and set the probability to 0.0.
+        for i in 2 ^ exponent : 2 ^ exponent - 1
+            if binaryTree[i, 2] >= 1.0
+                push!(sample, trunc(Int64, binaryTree[i, 1]))
+                binaryTree[i, 2] = 0.0
+            end
+        end
+
         for e in exponent : -1 : 1                              # From the second bottom layer to top layer.
             for i in 2 ^ (e - 1) : 2 ^ e - 1                    # From the left node to the right node.
                 l, r = 2 * i, 2 * i + 1                         # The indices of the children.
                 pl, pr = binaryTree[l, 2], binaryTree[r, 2]     # The inclusion probability.
-                # pl = 0.0 and pr = 0.0 are for the Gaussian initialization where inclusion probabilities can be bigger than 1.0.
-                # This is a stopgap. This approach brings an unwanted effect on the sample distortion.
                 if pl == 0.0
                     binaryTree[i, :] = [binaryTree[r, 1], pl + pr]
                 elseif pr == 0.0
@@ -133,7 +154,7 @@ module sampling
         if size(sample, 1) < k
             push!(sample, trunc(Int64, binaryTree[1, 1]))
         end
-        return sample, prob[sample]
+        return sample, clamp.(prob, 0.0, 1.0)[sample]
 
     end
 
@@ -167,19 +188,26 @@ module sampling
 
         n = size(dist_order, 1)
         prob = _prob ./ sum(_prob) .* k
-        sample = Int64[]
-        indexProb = [1 : n prob]                                # The first column is the index, the second column is the probability.
-        randomOrder = sortperm(rand(n))                         # Look at the indexProb in order.
-        loc = collect(1 : n)                                    # Keep the location in indexProb where each index is stored. 
-                                                                # i, j correspond to the rows in indexProb.
-                                                                # ix_i, ix_j correspond to the rows in A.
-        for i in randomOrder[1 : n - 1]                         # Loop over the rows in indexProb.
-            ix_i, p_i = Int(indexProb[i, 1]), indexProb[i, 2]   # Look at the index and probability at i.
+        # If we have probabilities bigger than 1.0, we pick those deterministically.
+        # Then, adjust the other probabilities so that we get exactly k samples (in expectation in Bernoulli sampling).
+        while abs(sum(clamp.(prob, 0.0, 1.0)) - k) > 1e-5
+            rescaleFactor = (k - sum(prob .>= 1.0)) / sum(prob[prob .< 1.0])
+            prob = prob * rescaleFactor
+        end
+        sample = collect(1 : n)[:, :][prob .>= 1.0]
+        indexProb = [collect(1 : n)[:, :][prob .< 1.0] prob[prob .< 1.0]]   # The first column is the index, the second column is the probability.
+        randomOrder = sortperm(rand(size(indexProb, 1)))                    # Look at the indexProb in order.
+        loc = zeros(Int64, n)[:, :]                                         # Keep the location in indexProb where each index is stored.
+        loc[prob .< 1.0] = collect(1 : size(indexProb, 1))
+                                                                            # i, j correspond to the rows in indexProb.
+                                                                            # ix_i, ix_j correspond to the rows in A.
+        for i in randomOrder[1 : size(randomOrder, 1) - 1]                  # Loop over the rows in indexProb.
+            ix_i, p_i = Int(indexProb[i, 1]), indexProb[i, 2]               # Look at the index and probability at i.
             j, ix_j, p_j = 0, 0, 0.0
-            for k = 2 : n                                       # Using the dist_order to find the nearest unfinished neighbor.
+            for k = 2 : n                                                   # Using the dist_order to find the nearest unfinished neighbor.
                 ix_j = dist_order[ix_i, k]
-                if loc[ix_j] != 0                               # If ix_j is finished, we have loc[ix_j] == 0.
-                    j = loc[ix_j]                               # Look up the location of ix_j in indexProb.
+                if loc[ix_j] != 0                                           # If ix_j is finished, we have loc[ix_j] == 0.
+                    j = loc[ix_j]                                           # Look up the location of ix_j in indexProb.
                     p_j = indexProb[j, 2]
                     break
                 end
@@ -213,9 +241,9 @@ module sampling
         # Deal with the floating point issue.
         # In the last step where we have p_i + p_j = 1.0, it may be categorized as p_i + p_j < 1.0.
         if size(sample, 1) < k
-            push!(sample, Int(indexProb[randomOrder[n], 1]))
+            push!(sample, Int(indexProb[randomOrder[size(randomOrder, 1)], 1]))
         end
-        return sample, prob[sample]
+        return sample, clamp.(prob, 0.0, 1.0)[sample]
 
     end
 
