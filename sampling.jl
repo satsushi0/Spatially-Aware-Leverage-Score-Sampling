@@ -112,14 +112,20 @@ module sampling
 
         exponent = ceil(Int64, log2(size(binaryTree, 1))) - 1
         prob = _prob ./ sum(_prob) .* k
+        while abs(sum(clamp.(prob, 0.0, 1.0)) - k) > 1e-5
+            rescaleFactor = (k - sum(prob .>= 1.0)) / sum(prob[prob .< 1.0])
+            prob = prob * rescaleFactor
+        end
         sample = Int64[]
 
         # Loop over all the leaves. 
-        # If the probability is bigger than 1.0, pick it as a sample and set the probability to 0.0.
-        for i in 2 ^ exponent : 2 ^ exponent - 1
-            if binaryTree[i, 2] >= 1.0
+        # If the probability is bigger than 1.0, pick it as a sample and set the probability to -2.0.
+        # Note that binaryTree is passed to this function by reference. 
+        # To reuse the same tree multiple times, need to set the probabilities of deterministically chosen points smaller than -1.0.
+        for i in 2 ^ exponent : 2 ^ (exponent + 1) - 1
+            if abs(binaryTree[i, 2]) >= 1.0
                 push!(sample, trunc(Int64, binaryTree[i, 1]))
-                binaryTree[i, 2] = 0.0
+                binaryTree[i, 2] = -2.0
             end
         end
 
@@ -127,10 +133,10 @@ module sampling
             for i in 2 ^ (e - 1) : 2 ^ e - 1                    # From the left node to the right node.
                 l, r = 2 * i, 2 * i + 1                         # The indices of the children.
                 pl, pr = binaryTree[l, 2], binaryTree[r, 2]     # The inclusion probability.
-                if pl == 0.0
-                    binaryTree[i, :] = [binaryTree[r, 1], pl + pr]
-                elseif pr == 0.0
-                    binaryTree[i, :] = [binaryTree[l, 1], pl + pr]
+                if pl <= 0.0
+                    binaryTree[i, :] = [binaryTree[r, 1], pr]
+                elseif pr <= 0.0
+                    binaryTree[i, :] = [binaryTree[l, 1], pl]
                 elseif pl + pr < 1.0
                     if rand() < pl / (pl + pr)                  # The case l promotes.
                         binaryTree[i, :] = [binaryTree[l, 1], pl + pr]

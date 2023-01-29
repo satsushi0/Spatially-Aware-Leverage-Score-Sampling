@@ -8,7 +8,7 @@ using Statistics
 
 nPerDim = 100                       # Number of points to generate for each coordinate.
 ndim = 2                            # Dimensionality of the target function.
-dpoly = 5                           # Polynomial degree for the regression.
+dpoly = 16                          # Polynomial degree for the regression.
 n = nPerDim ^ ndim                  # Number of total data points.
 d = binomial(dpoly + ndim, ndim)    # Number of features. The matrix A has size n by d.
 init = "Gaussian_nomanip"           # How to generate initial data points for the matrix A. 
@@ -29,7 +29,7 @@ uniform_prob = zeros(n, 1) .+ 1.0 / n   # Use this even inclusion probabilities 
 #     savefig("qoi_heat.png")
 # end
 
-sampleSize = collect(20 : 5 : 120)
+sampleSize = collect(140 : 10 : 350)
 ntrial = 100                            # Repeat the sampling and regression for ntrial times and take the median error.
 sampleMethods = ["bernoulli", "btPivotalCoordwise", "distPivotal"]
 
@@ -91,8 +91,8 @@ for method in sampleMethods
                     break
                 catch
                     errorCount = errorCount + 1
-                    if errorCount > 5
-                        throw(ErrorException("Error"))
+                    if errorCount > 10
+                        throw(ErrorException("Error Count: $errorCount, method=$method, nsample=$nsample, t=$t"))
                     end
                 end
             end
@@ -115,7 +115,7 @@ elseif target == "heat"
 elseif target == "heat_matlab"
     title, name = "Heat (M) | $init", "plot_heatM_$init" * "_$dpoly.png"
 end
-plot(title="$title, n=$n, polydeg=$dpoly, d=$d", xlabel="# samples", ylabel="median normalized error", yaxis=:log, ylims=(1e-2, 1e1), legend=:topright)
+plot(title="$title, n=$n, polydeg=$dpoly, d=$d", xlabel="# samples", ylabel="median normalized error", yaxis=:log, ylims=(1e-5, 1e1), legend=:bottomright)
 plot!(sampleSize, result_med["bernoulli_uniform"], label="bernoulli_uniform", lw=1, ls=:dash, lc=:orange)
 plot!(sampleSize, result_med["bernoulli_leverage"], label="bernoulli_leverage", lw=4, ls=:dash, lc=:orange)
 plot!(sampleSize, result_med["btPivotalCoordwise_uniform"], label="btPivotalCoordwise_uniform", lw=1, lc=:blue)
@@ -139,6 +139,28 @@ savefig("$name")
 # plot(A[sample, 2], A[sample, 3], seriestype=:scatter, label="distPivotal_uniform")
 # savefig("distPivotal_uniform.png")
 
-start = time()
-b_0 = mxcall(:generateHeatEquationMatlab, 1, A[9900:10000, 2:3])
-time() - start
+# Code for the number of deterministically chosen points by the number of samples.
+dpolys = collect(4 : 4 : 20)
+sampleSize = collect(1 : 350)
+ntrial = 100
+result = zeros(Float64, ntrial, size(sampleSize, 1))
+plot(xlabel="# samples", ylabel="# prob > 1.0", title="Gaussian, n=10000")
+for dpoly in dpolys
+    d = binomial(dpoly + ndim, ndim)
+    for i in 1 : ntrial
+        A = data._generateA(ndim, nPerDim, dpoly, "Gaussian_nomanip", "Legendre")
+        tau = data._leverageScore(A)
+        for s in eachindex(sampleSize)
+            nsample = sampleSize[s]
+            prob = tau ./ sum(tau) .* nsample
+            while abs(sum(clamp.(prob, 0.0, 1.0)) - nsample) > 1e-5
+                rescaleFactor = (nsample - sum(prob .>= 1.0)) / sum(prob[prob .< 1.0])
+                prob = prob * rescaleFactor
+            end
+            result[i, s] = sum(prob .> 1.0)
+        end
+    end
+    plot!(sampleSize, mean(result, dims=1)', ribbon=std(result, dims=1)', label="dpoly=$dpoly, d=$d")
+end
+plot!()
+savefig("prob>1.png")
