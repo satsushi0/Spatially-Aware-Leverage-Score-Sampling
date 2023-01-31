@@ -24,7 +24,7 @@ module data
         #                                   Truncated only to make sure the ODE & PDE work.
         #               uniform:            Drawn from the uniform distribution.
         #               ChebyshevNodes:     Drawn uniformly at random from the Chebyshev Nodes of 10000 values.
-        # polyType  Type of polynomials. [Chebyshev, Legendre, None]
+        # polyType  Type of polynomials. [Chebyshev, Legendre, QR, None]
         # target    Target function. [spring, heat]
         #               spring:             Spring distance for 2D or 3D space.
         #               heat:               Heat equation for 2D only.
@@ -133,7 +133,7 @@ module data
 
         # Construct a d by ndim matrix for final output A. 
         # Each row indicates how to mix up the polynomials in polyStraight.
-        # E.g. (2, 3, 4) means x_1^2 * x_2^3 * x_3^4.
+        # E.g. (3, 4, 5) means x_1^2 * x_2^3 * x_3^4, pointing the location in polyStraight.
         C = collect(combinations(1 : dpoly + ndim, ndim))
         C = reduce(vcat, C')
         for i in ndim : -1 : 2
@@ -143,9 +143,35 @@ module data
         C = C[order, :]
 
         A = ones(Float64, n, d)
-        for j in 1 : d
-            for k in 1 : ndim
-                A[:, j] = A[:, j] .* polyStraight[k, :, C[j, k]]
+        if polyType == "QR"
+            A = ones(Float64, n)
+            C = C .- 1
+
+            function decompose(i)
+                _, base_ix = findmax(C[i, :])
+                QR_ix = 0
+                target = C[i, :]
+                target[base_ix] -= 1
+                for j in i : -1 : 1
+                    if C[j, :] == target
+                        QR_ix = j
+                        break
+                    end
+                end
+                return QR_ix, base_ix
+            end
+
+            for i in 2 : d
+                QR_ix, base_ix = decompose(i)
+                A = [A A[:, QR_ix] .* base[base_ix, :]]
+                Q, _ = qr(A)
+                A = Q[:, 1 : size(A, 2)]
+            end
+        else
+            for j in 1 : d
+                for k in 1 : ndim
+                    A[:, j] = A[:, j] .* polyStraight[k, :, C[j, k]]
+                end
             end
         end
         return A
