@@ -239,6 +239,8 @@ plot!(sampleSize, result_med[method * "_QR_best"], label="QR_best cn=$cn_QR", lw
 plot!(sampleSize, result_med[method * "_QR_leverage"], label="QR_leverage", lw=4, lc=:red)
 savefig("$name")
 
+# ================================================================================================
+# Visualize the relationship between polynomial degree and condition number.
 dpolys = collect(10 : 10 : 100)
 polyTypes = ["QR", "Legendre", "Chebyshev", "None"]
 result_cn = Dict{String, Vector{Float64}}()
