@@ -126,6 +126,8 @@ module data
                 polyStraight[:, :, k] = (2 * k - 1) / k * polyStraight[:, :, k - 1] .* base - (k - 1) / k * polyStraight[:, :, k - 2]
             elseif polyType == "Chebyshev"
                 polyStraight[:, :, k] = 2 * polyStraight[:, :, k - 1] .* base - polyStraight[:, :, k - 2]
+            elseif polyType == "QR"
+                # Do nothing.
             else
                 polyStraight[:, :, k] = polyStraight[:, :, k - 1] .* base
             end
@@ -145,8 +147,7 @@ module data
         A = ones(Float64, n, d)
         if polyType == "QR"
             A = ones(Float64, n)
-            C = C .- 1      # Now, C is not pointing a location in polyStraight but polynomial degree.
-
+            C = C .- 1      # Now, C is not pointing a location in polyStraight but a polynomial degree.
             function decompose(i)
                 _, base_ix = findmax(C[i, :])
                 QR_ix = 0
@@ -160,13 +161,28 @@ module data
                 end
                 return QR_ix, base_ix
             end
-
+            # The Gram-Schmidt is faster than calling qr each time.
+            function sumproj(U, U_sqnorm, a)
+                return sum(U .* (U' * a ./ U_sqnorm)', dims=2)
+            end
+            U = A[:, :]
+            U_sqnorm = zeros(Float64, d)
+            U_sqnorm[1] = A' * A
             for i in 2 : d
                 QR_ix, base_ix = decompose(i)
-                A = [A A[:, QR_ix] .* base[base_ix, :]]
-                Q, _ = qr(A)
-                A = Q[:, 1 : size(A, 2)]
+                a = U[:, QR_ix] .* base[base_ix, :]
+                U = [U a .- sumproj(U, U_sqnorm[1 : i - 1], a)]
+                U_sqnorm[i] = U[:, i]' * U[:, i]
             end
+            A = U ./ sqrt.(U_sqnorm)'
+            A = U ./ sqrt.(sum(U .^ 2, dims=1))
+            # We can also use the qr function.
+            # for i in 2 : d
+            #     QR_ix, base_ix = decompose(i)
+            #     A = [A A[:, QR_ix] .* base[base_ix, :]]
+            #     Q, _ = qr(A)
+            #     A = Q[:, 1 : size(A, 2)]
+            # end
         else
             for j in 1 : d
                 for k in 1 : ndim
