@@ -145,7 +145,7 @@ module data
         A = ones(Float64, n, d)
         if polyType == "QR"
             A = ones(Float64, n)
-            C = C .- 1
+            C = C .- 1      # Now, C is not pointing a location in polyStraight but polynomial degree.
 
             function decompose(i)
                 _, base_ix = findmax(C[i, :])
