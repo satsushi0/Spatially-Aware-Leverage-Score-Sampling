@@ -12,7 +12,7 @@ dpoly = 16                          # Polynomial degree for the regression.
 n = nPerDim ^ ndim                  # Number of total data points.
 d = binomial(dpoly + ndim, ndim)    # Number of features. The matrix A has size n by d.
 init = "Gaussian_nomanip"           # How to generate initial data points for the matrix A. 
-target = "heat_matlab"                   # Target function.
+target = "surface"                   # Target function.
 A, tau, b_0 = data.generate(ndim, nPerDim, dpoly, init, "Legendre", target)
 uniform_prob = zeros(n, 1) .+ 1.0 / n   # Use this even inclusion probabilities to compare with the leverage score.
 
@@ -93,10 +93,10 @@ X_tilde = (A_tilde' * A_tilde) \ A_tilde' * b_tilde
 b_1 = A * X_tilde
 error = mean((b_1 - b) .^ 2) / b_norm
 df = DataFrame(x=A[:, 2], y=A[:, 3], qoi=b_0)
-df |> @vlplot(mark={type=:point, filled=true, size=20, opacity=0.5}, x=:x, y=:y, color={:qoi, scale={scheme=:turbo, domain=[0.5, 2.0]}}, 
+df |> @vlplot(mark={type=:point, filled=true, size=20, opacity=0.5}, x=:x, y=:y, color={:qoi, scale={scheme=:turbo, domain=[0.0, 1.0]}}, 
               width=400, height=400, title="True Values") |> FileIO.save("studyFullGaussian_true_$dpoly.png")
 df = DataFrame(x=A[:, 2], y=A[:, 3], est=b_1)
-df |> @vlplot(mark={type=:point, filled=true, size=20, opacity=0.5}, x=:x, y=:y, color={:est, scale={scheme=:turbo, domain=[0.5, 2.0]}}, 
+df |> @vlplot(mark={type=:point, filled=true, size=20, opacity=0.5}, x=:x, y=:y, color={:est, scale={scheme=:turbo, domain=[0.0, 1.0]}}, 
               width=400, height=400, title="dpoly=$dpoly, k=$nsample, Error=$error")|> FileIO.save("studyFullGaussian_est_$dpoly" * "_$nsample.png")
 df = DataFrame(x=A[:, 2], y=A[:, 3], error=clamp.(b_1-b_0, -1.0, 1.0))
 df |> @vlplot(mark={type=:point, filled=true, size=20, opacity=0.5}, x=:x, y=:y, color={:error, scale={scheme=:redblue, domain=[-1.0, 1.0]}}, 

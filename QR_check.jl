@@ -133,7 +133,7 @@ include("./sampling.jl")
 using Plots
 using Statistics
 
-nPerDim = 100                       # Number of points to generate for each coordinate.
+nPerDim = 200                       # Number of points to generate for each coordinate.
 ndim = 2                            # Dimensionality of the target function.
 dpoly = 70                          # Polynomial degree for the regression.
 n = nPerDim ^ ndim                  # Number of total data points.
@@ -143,7 +143,7 @@ target = "spring"              # Target function.
 A, tau, b_0 = data.generate(ndim, nPerDim, dpoly, init, "Legendre", target)
 uniform_prob = zeros(n, 1) .+ 1.0 / n   # Use this even inclusion probabilities to compare with the leverage score.
 
-sampleSize = collect(500 : 20 : 800)
+sampleSize = collect(2500 : 50 : 3000)
 ntrial = 100                            # Repeat the sampling and regression for ntrial times and take the median error.
 methods = ["bernoulli", "btPivotalCoordwise", "btPivotalPCA", "distPivotal"]
 polyTypes = ["QR", "Legendre", "Chebyshev", "None"]
@@ -173,7 +173,11 @@ for p in eachindex(polyTypes)
     polyType = polyTypes[p]
     println("Simulating with " * polyType)
     A = data._generateA(ndim, nPerDim, dpoly, init, polyType)
-    cn[p] = conditionNumber(A)
+    try
+        cn[p] = conditionNumber(A)
+    catch
+        cn[p] = Inf
+    end
     tau = data._leverageScore(A)
     for method in methods
         result_med[method * "_" * polyType * "_best"] = zeros(length(sampleSize))

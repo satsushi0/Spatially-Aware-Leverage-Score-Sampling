@@ -170,8 +170,8 @@ module sampling
         # The first entry in i-th row is the index of the closest point to i (which is i itself). 
         # The rightmost entry is the index of the farthest point to i.
         n, ndim = size(A_1)
-        dist = zeros(Float16, n, n)     # A matrix for l2 distance.
-        dist_order = zeros(Int16, n, n)
+        dist = zeros(Float64, n, n)     # A matrix for l2 distance.
+        dist_order = zeros(Int64, n, n)
         # When ndim is small, using the outer product seems to be faster.
         pos_exp, neg_exp = exp.(A_1), exp.(-A_1)
         for i in 1 : ndim

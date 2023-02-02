@@ -29,6 +29,7 @@ module data
         #               spring:             Spring distance for 2D or 3D space.
         #               heat:               Heat equation for 2D only.
         #               heat_matlab:        Heat equation solved by PDE solver in Matlab. 2D only.
+        #               surface:            Surface reaction for 2D only.
         #
         # ===== Outputs =====
         # A     Data points of n by d matrix. 
@@ -47,6 +48,8 @@ module data
                 b_0 = _generateHeatEquation(A[:, 2 : 3]) 
             elseif target == "heat_matlab"
                 b_0 = _generateHeatEquationMatlab(A[:, 2 : 3])
+            elseif target == "surface"
+                b_0 = _generateSurfaceReaction(A[:, 2 : 3])
             end
         elseif ndim == 3
             if target == "spring"
@@ -175,7 +178,6 @@ module data
                 U_sqnorm[i] = U[:, i]' * U[:, i]
             end
             A = U ./ sqrt.(U_sqnorm)'
-            A = U ./ sqrt.(sum(U .^ 2, dims=1))
             # We can also use the qr function.
             # for i in 2 : d
             #     QR_ix, base_ix = decompose(i)
@@ -303,38 +305,7 @@ module data
 
     end
 
-    # function _generateHeatEquation(nPerDim)
-        # This implementation is only for grid.
-
-    #     diffusion_coef = 1.0 / pi ^ 2
-    #     fvals = LinRange(0, 5, nPerDim)
-    #     x = range(0, 1, length=100)
-    #     time = LinRange(0, 3.0, nPerDim)
-        
-    #     function f!(du, u, p, t)
-    #         Q, D, diffusion_coef = p
-    #         du .= diffusion_coef * D * Q * u
-    #     end
-
-    #     b_0 = zeros(nPerDim, nPerDim)
-    #     for i in eachindex(fvals)
-    #         freq = fvals[i]
-    #         u0 = sin.(freq * pi * x) .+ 1.0
-    #         Q = Dirichlet0BC(eltype(u0))
-    #         D = CenteredDifference{1}(2, 3, Float64(x.step), x.len)
-    #         p = [Q, D, diffusion_coef]
-    #         tspan = (0.0, 3.0)
-    #         prob = ODEProblem(f!, u0, tspan, p)
-    #         sol = solve(prob)
-    #         u = reduce(vcat, sol(time).u')
-    #         b_0[i, :] = maximum(u, dims=2)
-    #     end
-    #     b_0 = b_0 .- minimum(b_0)
-
-    #     return b_0
-
-    # end
-
+    # Matlab PDE solver version.
     function _generateHeatEquationMatlab(A_1)
 
         dir = @__DIR__
@@ -343,6 +314,37 @@ module data
         b_0 = mxcall(:generateHeatEquationMatlab, 1, A_1)
 
         return b_0
+    end
+
+    # Surface Reaction Target.
+    # Example taken from https://www.sciencedirect.com/science/article/pii/S004578251500047X
+    function _generateSurfaceReaction(A_1)
+        
+        n = size(A_1, 1)
+
+        alpha = 1.0     # Adsorption
+        gamma = 0.01    # Desorption
+        kappa = 10.0    # Reaction rate constant
+        tmax = 4.0
+        rho_init = 0.9  # Initial value for QoI (rho)
+
+        scaler = 10.0   # [-10, 10] seems to be a good domain setting for this function while ours is [-1, 1].
+
+        function surfaceReaction(t, rho)
+            deriv = alpha * (1.0 - rho) - gamma * rho - kappa * (1.0 - rho) ^ 2 * rho
+            return deriv
+        end
+
+        b_0 = zeros(Float64, n)
+        for i in 1 : n
+            alpha = 0.1 + exp(0.05 * A_1[i, 1] * scaler)
+            gamma = 0.001 + 0.01 * exp(0.05 * A_1[i, 2] * scaler)
+            t, rho = ode45(surfaceReaction, rho_init, [0.0, tmax])
+            b_0[i] = rho[length(rho)]
+        end
+
+        return b_0
+
     end
 
 end

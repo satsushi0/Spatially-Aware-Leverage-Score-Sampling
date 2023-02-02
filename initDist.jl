@@ -8,7 +8,7 @@ using VegaLite, DataFrames, FileIO
 
 nPerDim = 50                        # Number of points to generate for each coordinate.
 ndim = 2                            # Dimensionality of the target function.
-dpoly = 5                           # Polynomial degree for the regression.
+dpoly = 16                          # Polynomial degree for the regression.
 n = nPerDim ^ ndim                  # Number of total data points.
 
 initMethods = ["grid", "uniform", "Gaussian", "ChebyshevNodes"]
@@ -26,8 +26,8 @@ for initMethod in initMethods
                 width=400, height=400, title="$initMethod, n=$n") |> FileIO.save("qoi_spring_$initMethod.png")
 end
 
-initMethod = "Gaussian_nomanip"
-A, tau, b_0 = data.generate(ndim, nPerDim, dpoly, initMethod, "Legendre", "heat_matlab")
+initMethod = "grid"
+A, tau, b_0 = data.generate(ndim, nPerDim, dpoly, initMethod, "Legendre", "surface")
 
 # Plot the data points colored by the leverage score.
 _tau = clamp.(tau, 0.0, 0.15)
@@ -36,9 +36,8 @@ df |> @vlplot(mark={type=:point, filled=true, size=50, opacity=1.0}, x=:x, y=:y,
             width=400, height=400, title="$initMethod, n=$n, ") |> FileIO.save("$initMethod" * "_updated.png")
 # Plot the data points colored by the target value.
 df = DataFrame(x=A[:, 2], y=A[:, 3], qoi=b_0)
-df |> @vlplot(mark={type=:point, filled=true, size=50, opacity=1.0}, x=:x, y=:y, color={:qoi, scale={scheme=:turbo, domain=[0.5, 2.0]}}, 
-            width=400, height=400, title="$initMethod, n=$n") 
-            |> FileIO.save("qoi_heat_$initMethod" * ".png")
+df |> @vlplot(mark={type=:point, filled=true, size=50, opacity=1.0}, x=:x, y=:y, color={:qoi, scale={scheme=:turbo, domain=[0.0, 1.0]}}, 
+            width=400, height=400, title="$initMethod, n=$n") |> FileIO.save("qoi_surface_$initMethod" * ".png")
 
 histogram(b_0, bins=range(0, 2, length=21), normalize=:pdf, xlabel="target value (y)", ylabel="Pr(y)", title="PDF of Heat Equation | Gaussian initialization", legend=false)
 savefig("histogram_heat_gaussian.png")

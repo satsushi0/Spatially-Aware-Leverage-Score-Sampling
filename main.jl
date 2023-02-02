@@ -11,23 +11,11 @@ ndim = 2                            # Dimensionality of the target function.
 dpoly = 16                          # Polynomial degree for the regression.
 n = nPerDim ^ ndim                  # Number of total data points.
 d = binomial(dpoly + ndim, ndim)    # Number of features. The matrix A has size n by d.
-init = "Gaussian_nomanip"           # How to generate initial data points for the matrix A. 
-target = "heat_matlab"                   # Target function.
+init = "grid"           # How to generate initial data points for the matrix A. 
+target = "surface"                   # Target function.
 A, tau, b_0 = data.generate(ndim, nPerDim, dpoly, init, "Legendre", target)
 uniform_prob = zeros(n, 1) .+ 1.0 / n   # Use this even inclusion probabilities to compare with the leverage score.
 
-# Visualize the target function.
-# if target == "spring"
-#     heatmap(LinRange(-1, 1, nPerDim), LinRange(-1, 1, nPerDim), b_0, 
-#             xlabel="spring constant, \$k\$", 
-#             ylabel="driving frequency, \$\\omega\$")
-#     savefig("qoi_spring.png")
-# elseif target == "heat"
-#     heatmap(LinRange(0, 1, nPerDim), LinRange(0, 5, nPerDim), b_0, 
-#             xlabel="time, \$t\$", 
-#             ylabel="starting frequency, \$f\$")
-#     savefig("qoi_heat.png")
-# end
 
 sampleSize = collect(140 : 10 : 350)
 ntrial = 100                            # Repeat the sampling and regression for ntrial times and take the median error.
@@ -114,6 +102,8 @@ elseif target == "heat"
     title, name = "Heat | $init", "plot_heat_$init" * "_$dpoly.png"
 elseif target == "heat_matlab"
     title, name = "Heat (M) | $init", "plot_heatM_$init" * "_$dpoly.png"
+elseif target == "surface"
+    title, name = "Surface | $init", "plot_surface_$init" * "_$dpoly.png"
 end
 plot(title="$title, n=$n, polydeg=$dpoly, d=$d", xlabel="# samples", ylabel="median normalized error", yaxis=:log, ylims=(1e-5, 1e1), legend=:bottomright)
 plot!(sampleSize, result_med["bernoulli_uniform"], label="bernoulli_uniform", lw=1, ls=:dash, lc=:orange)
