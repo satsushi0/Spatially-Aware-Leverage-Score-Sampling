@@ -173,6 +173,7 @@ module sampling
         dist = zeros(Float64, n, n)     # A matrix for l2 distance.
         dist_order = zeros(Int64, n, n)
         # When ndim is small, using the outer product seems to be faster.
+        # As we are only interested in the rank, taking the absolute values of the outer product suffices, log and square can be omitted.
         pos_exp, neg_exp = exp.(A_1), exp.(-A_1)
         for i in 1 : ndim
             dist = dist + log.(pos_exp[:, i] * neg_exp[:, i]') .^ 2
