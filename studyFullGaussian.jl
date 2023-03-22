@@ -8,11 +8,11 @@ using VegaLite, DataFrames, FileIO
 
 nPerDim = 100                       # Number of points to generate for each coordinate.
 ndim = 2                            # Dimensionality of the target function.
-dpoly = 16                          # Polynomial degree for the regression.
+dpoly = 7                          # Polynomial degree for the regression.
 n = nPerDim ^ ndim                  # Number of total data points.
 d = binomial(dpoly + ndim, ndim)    # Number of features. The matrix A has size n by d.
-init = "Gaussian_nomanip"           # How to generate initial data points for the matrix A. 
-target = "heat_matlab"                  # Target function.
+init = "grid"           # How to generate initial data points for the matrix A. 
+target = "spring"                  # Target function.
 A, tau, b_0 = data.generate(ndim, nPerDim, dpoly, init, "Legendre", target)
 uniform_prob = zeros(n, 1) .+ 1.0 / n   # Use this even inclusion probabilities to compare with the leverage score.
 
